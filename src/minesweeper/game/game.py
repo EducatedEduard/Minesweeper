@@ -1,4 +1,4 @@
-from .gamestate import GameState
+from .gamestate import GameState, CellState
 from .rules import get_legal_actions, apply_action
 
 class Game:
@@ -18,5 +18,5 @@ class Game:
     def reset_gamestate(self):
         self.gamestate.movecount = 0 
         self.gamestate.lost = False
-        self.gamestate.opened == [[-3] * self.gamestate.size[0]] * self.gamestate.size[1]
+        self.gamestate.opened == [[CellState.CLOSED] * self.gamestate.size[0]] * self.gamestate.size[1]
         self.board = None
