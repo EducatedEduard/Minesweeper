@@ -8,34 +8,36 @@ import tkinter as tk
 
 class HumanUI(UI):
     CELL_SIZE = 25  # Pixel per field
+    state = None
     
     def __init__(self):
         self.root = tk.Tk()
         self.root.title("Minesweeper")
 
         # Statusleiste
-        self.status_frame = tk.Frame(self.root)
-        self.status_frame.pack(fill="x")
+        self.statusFraame = tk.Frame(self.root)
+        self.statusFraame.pack(fill="x")
 
-        self.mines_label = tk.Label(self.status_frame, anchor="w")
-        self.mines_label.pack(side="left", padx=10)
+        self.minesLabel = tk.Label(self.statusFraame, anchor="w")
+        self.minesLabel.pack(side="left", padx=10)
 
-        self.moves_label = tk.Label(self.status_frame, anchor="w")
-        self.moves_label.pack(side="left", padx=10)
+        self.movesLabel = tk.Label(self.statusFraame, anchor="w")
+        self.movesLabel.pack(side="left", padx=10)
 
-        self.flagged_label = tk.Label(self.status_frame, anchor="w")
-        self.flagged_label.pack(side="left", padx=10)
+        self.flaggedLabel = tk.Label(self.statusFraame, anchor="w")
+        self.flaggedLabel.pack(side="left", padx=10)
         
         self.canvas = None
         self.pending_action = None
     
     def render(self, state):
+        self.state = state
         rows, cols = state.size
 
         # Status aktualisieren
-        self.mines_label.config(text=f"Mines: {state.minecount}")
-        self.moves_label.config(text=f"Moves: {state.movecount}")
-        self.flagged_label.config(text=f"Unflagged Mines: {state.minecount - state.flaggedcount}")
+        self.minesLabel.config(text=f"Mines: {state.minecount}")
+        self.movesLabel.config(text=f"Moves: {state.movecount}")
+        self.flaggedLabel.config(text=f"Unflagged Mines: {state.minecount - state.flaggedcount - state.openedmines}")
         
         if self.canvas is None:
             self.canvas = tk.Canvas(
@@ -84,45 +86,28 @@ class HumanUI(UI):
                         )
 
         self.root.update()
-        
-    # def render(self, state):
-    #     for r in range(state.size[0]):
-    #         row_display = ""
-    #         for c in range(state.size[1]):
-    #             cell = state.opened[r][c]
-    #             if cell == -3:
-    #                 row_display += "[ ]"
-    #             elif cell == -2:
-    #                 row_display += "[F]"
-    #             elif cell >= 0:
-    #                 row_display += f"[{cell}]"
-    #         print(row_display)
-    #     print(f"Mines: {state.minecount}, Moves: {state.movecount}, Lost: {state.lost}\n")
-                
 
     def get_action(self, state):
-        self.pending_action = None
-        legal_actions = get_legal_actions(state)
+        self.pendingAction = None
+        legalActions = get_legal_actions(state)
         while True:
-            while self.pending_action is None:
+            while self.pendingAction is None:
                 self.root.update()
                 
-            if self.pending_action in legal_actions:
-                return self.pending_action
+            if self.pendingAction in legalActions:
+                return self.pendingAction
             
             print("Action nicht möglich")
-            self.pending_action = None
+            self.pendingAction = None
             
 
     def _event_to_cell(self, event):
-        c = event.x // self.CELL_SIZE
-        r = event.y // self.CELL_SIZE
-        return r, c
+        return (event.y // self.CELL_SIZE, event.x // self.CELL_SIZE)
 
     def _on_left_click(self, event):
-        row, col = self._event_to_cell(event)
-        self.pending_action = OpenAction(row=row, col=col)
+        field = self._event_to_cell(event)
+        self.pendingAction = OpenAction(field, self.state[field] >= 0)
 
     def _on_right_click(self, event):
         row, col = self._event_to_cell(event)
-        self.pending_action = FlagAction(row=row, col=col)
+        self.pendingAction = FlagAction((row, col))

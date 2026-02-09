@@ -3,43 +3,44 @@ import random
 from .gamestate import GameState, CellState
 
 def get_legal_actions(gamestate):
-    legal_actions = []
+    legalActions = []
     
-    for x in range(gamestate.size[0]):
-        for y in range(gamestate.size[1]):
-            field = (x,y)
-            if gamestate[field] == CellState.CLOSED:
-                legal_actions.append(FlagAction(x,y))  
-                legal_actions.append(OpenAction(x,y))
-            elif gamestate[field] >= 0:
-                
-                # check if right amoutn of neighbours are flagged
-                flagged = 0
-                closed = 0
-                for neighbour in gamestate.get_neighbours(field):
-                    if gamestate[neighbour] == CellState.FLAGGED or gamestate[neighbour] == CellState.MINE:
-                        flagged += 1
-                    elif gamestate[neighbour] == CellState.CLOSED:
-                        closed += 1
-                        
-                if gamestate[field] <= flagged and closed > 0:
-                    legal_actions.append(OpenAction(x,y))
+    # if all fields are opened, no more moves allowed
+    if gamestate.openedcount + gamestate.minecount == gamestate.size[0] * gamestate.size[1]:
+        return legalActions
+    
+    
+    for field, value in gamestate:
+        if value == CellState.CLOSED:
+            legalActions.append(FlagAction(field))  
+            legalActions.append(OpenAction(field, False))
+        elif value >= 0:
+            
+            # check if right amoutn of neighbours are flagged
+            flagged = 0
+            closed = 0
+            for neighbour, neighbourValue in gamestate.get_neighbours(field):
+                if neighbourValue == CellState.FLAGGED or neighbourValue == CellState.MINE:
+                    flagged += 1
+                elif neighbourValue == CellState.CLOSED:
+                    closed += 1
+                    
+            if value <= flagged and closed > 0:
+                legalActions.append(OpenAction(field, True))
 
-            elif gamestate[field] == CellState.FLAGGED:
-                legal_actions.append(FlagAction(x,y))
+        elif value == CellState.FLAGGED:
+            legalActions.append(FlagAction(field))
              
         
-    return legal_actions
+    return legalActions
 
 def apply_action(board, gamestate, action):
 
     if isinstance(action, OpenAction):
-        field = (action.row, action.col) 
-        board = click_field(board, gamestate, field)
+        board = click_field(board, gamestate, action.field)
     
     elif isinstance(action, FlagAction):
-        field = (action.row, action.col) 
-        flag_field(board, gamestate, field)        
+        flag_field(board, gamestate, action.field)        
         
     return gamestate.copy(), board
 
@@ -49,6 +50,8 @@ def click_field(board, gamestate, field):
         
         elif gamestate[field] >= 0:
             multi_open(board, gamestate, field)
+            gamestate.movecount += 1
+            return board
         
         # TODO remove should not happen
         elif gamestate[field] == CellState.FLAGGED:
@@ -84,15 +87,14 @@ def flag_field(board, gamestate, field):
         gamestate.flaggedcount += 1
 
 def multi_open(board, gamestate, field):
-    neighbours = gamestate.get_neighbours(field)
-    
+
     # check if right amoutn of neighbours are flagged
     flagged = 0
     closed = 0
-    for neighbour in neighbours:
-        if gamestate[neighbour] == CellState.FLAGGED or gamestate[neighbour] == CellState.MINE:
+    for neighbour, neighbourValue in gamestate.get_neighbours(field):
+        if neighbourValue == CellState.FLAGGED or neighbourValue == CellState.MINE:
             flagged += 1
-        elif gamestate[neighbour] == CellState.CLOSED:
+        elif neighbourValue == CellState.CLOSED:
             closed += 1
     
     # TODO remove should not happen        
@@ -101,8 +103,8 @@ def multi_open(board, gamestate, field):
     if closed == 0:
         raise ValueError("No fields to open")
     
-    for neighbour in neighbours:
-        if gamestate[neighbour] == CellState.CLOSED:
+    for neighbour, neighbourValue in gamestate.get_neighbours(field):
+        if neighbourValue == CellState.CLOSED:
             open_field(board, gamestate, neighbour)
     
 def open_field(board, gamestate, field):
@@ -114,7 +116,7 @@ def open_field(board, gamestate, field):
     if board[field[0]][field[1]] == 0 and gamestate[field] != 0:
         gamestate[field] = board[field[0]][field[1]]
         gamestate.openedcount += 1
-        for neighbour in gamestate.get_neighbours(field):
+        for neighbour, _ in gamestate.get_neighbours(field):
             open_field(board, gamestate, neighbour)
         return
                         
@@ -122,10 +124,11 @@ def open_field(board, gamestate, field):
     gamestate.openedcount += 1
     
     if board[field[0]][field[1]] == CellState.MINE:
+        gamestate.openedmines += 1
         gamestate.lost = True
         return
 
-    print(f"Fehlende Felder {gamestate.size[0]*gamestate.size[1]-gamestate.flaggedcount-gamestate.openedcount}")
+    # print(f"Fehlende Felder {gamestate.size[0]*gamestate.size[1]-gamestate.flaggedcount-gamestate.openedcount}")
         
 def generate_board(gamestate, field):
         
@@ -133,7 +136,7 @@ def generate_board(gamestate, field):
         
         mines = random.sample([(x, y) for x in range(gamestate.size[0]) for y in range(gamestate.size[1]) if (x, y) != field], gamestate.minecount)
         for mine in mines:
-            for neighbour in gamestate.get_neighbours(mine):
+            for neighbour, _ in gamestate.get_neighbours(mine):
                 if board[neighbour[0]][neighbour[1]] != CellState.MINE: 
                     board[neighbour[0]][neighbour[1]] += 1
             

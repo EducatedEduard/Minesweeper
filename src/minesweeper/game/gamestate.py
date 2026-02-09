@@ -19,6 +19,7 @@ class GameState:
         self.minecount = minecount
         self.movecount = 0
         self.openedcount = 0
+        self.openedmines = 0
         self.flaggedcount = 0
         self.lost = False
         self.opened = [[CellState.CLOSED]  * self.size[0] for _ in range(self.size[1])]
@@ -31,14 +32,17 @@ class GameState:
     def __setitem__(self, field, value):
         row, col = field
         self.opened[row][col] = value
+        
+    def __iter__(self):
+        for x, row in enumerate(self.opened):
+            for y, value in enumerate(row):
+                yield (x, y), value
     
     def get_neighbours(self, field):
-        neighbours = []
         for x,y in [(-1, 0), (-1, -1), (0, -1), (1, -1), (1, 0), (1, 1), (0, 1), (-1, 1)]:
-            if 0 <= field[0]+x < self.size[0] and 0 <= field[1]+y < self.size[1]:
-                neighbours.append((field[0]+x, field[1]+y))
-                
-        return neighbours        
+            newField = (field[0]+x, field[1]+y)
+            if 0 <= newField[0] < self.size[0] and 0 <= newField[1] < self.size[1]:
+                yield newField, self[newField]
         
     def copy(self):
         new = GameState(self.size, self.minecount)
@@ -47,5 +51,6 @@ class GameState:
         new.flaggedcount = self.flaggedcount
         new.lost = self.lost
         new.opened = [row[:] for row in self.opened]
+        new.openedmines = self.openedmines
 
         return new
